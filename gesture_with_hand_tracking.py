@@ -19,10 +19,11 @@ import threading
 import pyttsx3
 import sqlite3
 from collections import deque
+from imutils.video import WebcamVideoStream
 #import pyttsx3
 
 engine = pyttsx3.init()
-conn =sqlite3.connect('C:\\Users\\anupa\\gesturedb')
+conn =sqlite3.connect('gesturedb')
 c = conn.cursor()
 row = c.execute('Select * from ges_dy')
     
@@ -54,46 +55,58 @@ def speak(word):
     engine.runAndWait()
       
     
-video = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+print("Use default webcam? \n y/n : ")
+cam= 0
+
+if(input()=='n'):
+    
+    print("Enter video stream output link: ")
+    cam = input()
+
+video = WebcamVideoStream(cam).start()
+
 print("Video Capture Started")
 voice = "Video Capture Started"
 th = threading.Thread(target = speak, args=(voice,))
 th.start()
 
 print("Loading Brain")
-model = load_model('new_ges.h5')
+model = load_model('best_cust_model.h5')
 print("Loaded")
 
-tracker = cv2.TrackerKCF_create()
+tracker = cv2.TrackerCSRT_create()
 
 
 #model = pickle.load(open('svchand.sav', 'rb'))
 hand = False
 initBB = None  #initial Bounding Box
 
-while video.isOpened():
+while(True):
     
-    ret,  frame = video.read()
+    frame = video.read()
     frame = cv2.flip(frame,flipCode=1)
     word=''
+    key = cv2.waitKey(20)
     
+    ret= True
     if (ret==True):
         
         if not hand:
             cv2.rectangle(frame, (412,278),(608,82),(0,100,0),2 )
         
-        if (cv2.waitKey(10) == ord("s")):
+        if (key == ord("s") or key==ord("S")):
                 
             initBB = (412,82,196,196)
             #initBB = cv2.selectROI("Frame", frame, fromCenter=False)
             tracker.init(frame, initBB)
             hand = True
             
-        elif(cv2.waitKey(20)==ord('r')):
+        elif(key==ord('r') or key==ord("R")):
             
             initBB= None
             hand = False
-            
+            tracker.clear()
+
             
         
         if initBB is not None:
@@ -105,12 +118,19 @@ while video.isOpened():
                 (x,y,w,h) = [int(v) for v in box]
                 cv2.rectangle(frame, (x,y), (x+w, y+h), (0,255,0), 2)
                 
-                image = frame[y:y+h, x:x+w]
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                image = cv2.resize(image, dsize=(28,28))
+                
+                try:
+                    image = frame[y:y+h, x:x+w]
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                    image = cv2.resize(image, dsize=(28,28))
+                    
+                except:
+                    print("You are out of bounds")
+                    cv2.putText(frame,"You are out of bounds",org= (210,320),fontFace= cv2.FONT_HERSHEY_PLAIN,fontScale=1, color=(0,0,255),thickness=1)
+                    continue
                 
                 
-                if(cv2.waitKey(5) == ord('c')):
+                if(key == ord('c')):
             
                     cv2.imwrite('image.jpg', image)
                 
@@ -125,12 +145,12 @@ while video.isOpened():
                     
                     m = np.argmax(text[0])
             
-                    if(m>24 and frame_count<45):
+                    if(frame_count<30):
                         
                         frame_count+=1
                         centroid = (x+0.5*w, y+0.5*h)
                         pts.appendleft(centroid)
-                        cv2.putText(frame,str(frame_count),org= (10,10),fontFace= cv2.FONT_HERSHEY_PLAIN,fontScale=1, color=(0,0,255),thickness=1)
+                        cv2.putText(frame,str(m)+"--"+str(frame_count),org= (10,10),fontFace= cv2.FONT_HERSHEY_PLAIN,fontScale=1, color=(0,0,255),thickness=1)
                         
                         for i in range(1,len(pts)):
                         
@@ -154,7 +174,7 @@ while video.isOpened():
                                     
                                     
                                 elif(np.abs(dY)>20):
-                                    direction = "down" if np.sign(dX)==1 else "up"
+                                    direction = "up" if np.sign(dY)==1 else "down"
                                     
                                     if(len(direction_list)==0):
                                         direction_list += direction[0]
@@ -162,7 +182,7 @@ while video.isOpened():
                                         direction_list += direction[0] 
                                     print(direction)
                                     
-                    elif(m>24 and frame_count==45):
+                    elif(frame_count==30):
                         
                         print(m,direction_list)
                         
@@ -172,16 +192,16 @@ while video.isOpened():
                         frame_count=0
                         direction_list= ''
                         
-                    else:
-                        word = letter(m)
                         
                     if(word!=''):
                         cv2.putText(frame, word , (300,340), cv2.FONT_HERSHEY_COMPLEX, 1, (0,100,0),3)
                         t1 = threading.Thread(target = speak, args=(word,))
                         t1.start()
-        
+                
+            else:
+                frame_count=0
                     
-        if (cv2.waitKey(20) == ord('q')):
+        if (key == ord('q') or key==ord("Q")):
             
             break
             
@@ -190,6 +210,6 @@ while video.isOpened():
         
     cv2.imshow('Video Feed', frame);
     
-video.release()
+video.stop()
 cv2.destroyAllWindows()
 conn.close()
