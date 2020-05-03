@@ -3,7 +3,7 @@ A CNN based for Gesture Recognition System.
 
 Dependencies:
 
-1. Numpy 2. Pandas 3. Tensorflow 4. tkinter 5. OpenCV 6. SQLite3
+1. Numpy 2. Pandas 3. Tensorflow 4. tkinter 5. OpenCV 6. SQLite3 7. imutils
 
 How to use:
 
