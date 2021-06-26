@@ -1,4 +1,4 @@
-# ASL_Gesture_recognition
+# ASL Gesture recognition
 A CNN based for Gesture Recognition System.
 
 Dependencies:
